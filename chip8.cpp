@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <cstring>
+
 #include "SDL2/SDL.h"
 
 const bool DEBUG = false;
@@ -336,13 +337,6 @@ void chip8::c8XY4() {
 
     V[0xF] = sum > 0xFF;
     V[x] = sum & 0xFF;
-
-    // if (sum < V[x]) {
-    //     V[0xF] = 1;
-    // } else {
-    //     V[0xF] = 0;
-    // }
-    // V[x] = sum;
 }
 
 void chip8::c8XY5() {
@@ -415,6 +409,8 @@ void chip8::cCXNN() {
     V[x] = random & nn;
 }
 
+//! Not my implementation of DXYN
+//! Credit to an Unknown author
 void chip8::cDXYN() {
     uint8_t Vx = (opcode & 0x0F00) >> 8;
     uint8_t Vy = (opcode & 0x00F0) >> 4;
@@ -558,4 +554,3 @@ void chip8::cFX65() {
         V[i] = mem[i + I];
     }
 }
-
