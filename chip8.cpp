@@ -290,7 +290,7 @@ void chip8::c00E0() { memset(&screen, 0, sizeof(screen)); }
 void chip8::c00EE() {
     pc = stack[sp];
     --sp;
-}
+} 
 
 void chip8::c1NNN() { pc = opcode & 0x0FFF; }
 

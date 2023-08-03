@@ -1,4 +1,4 @@
-//* Memory Macros
+//* Memory Macros 
 #define MEMORY_START_ADDRESS 0x200
 #define MEMORY_SIZE 0x1000
 #define FONTS_START_ADDRESS 0xF00

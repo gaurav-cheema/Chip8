@@ -1,6 +1,6 @@
 main: clean
 	clear
-	@echo "Compiling and Running Test"
+	@echo "Compiling and Running main file"
 	g++ -std=c++17 main.cpp -I"include" -L"lib" -Wall -lSDL2main -lSDL2 -lSDL2_image -o main.o
 	./main.o
 
