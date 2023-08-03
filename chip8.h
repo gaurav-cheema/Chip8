@@ -23,7 +23,7 @@ class chip8 {
     void execute();
 
     uint8_t keyStroke[16]{};
-    uint32_t screen[VIDEO_WIDTH * VIDEO_HEIGHT];
+    uint32_t screen[VIDEO_WIDTH * VIDEO_HEIGHT]{0};
 
     private:
     void c00E0();  // cls

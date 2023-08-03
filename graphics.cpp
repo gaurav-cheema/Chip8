@@ -14,7 +14,7 @@ class Platform {
 
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
+        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                                     SDL_TEXTUREACCESS_STREAMING, textureWidth,
                                     textureHeight);
     }
@@ -35,14 +35,10 @@ class Platform {
 
     bool ProcessInput(uint8_t* keys) {
         bool quit = false;
-
         SDL_Event event;
 
-        // int count = 0;
-
-        while (SDL_PollEvent(&event)) {
-            // std::cout << count << std::endl;
-            // count++;
+        while (SDL_PollEvent(&event) != 0) {
+            
             switch (event.type) {
                 case SDL_QUIT: {
                     quit = true;

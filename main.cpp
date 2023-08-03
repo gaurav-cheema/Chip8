@@ -11,7 +11,7 @@ using namespace std;
 int main(int argc, char** argv) {
     int windowScale = 12;
 
-    char* fileName = "tetris.rom";
+    char* fileName = "test_opcode.ch8";
 
     chip8 chip8;
     chip8.init();
