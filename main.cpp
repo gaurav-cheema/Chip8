@@ -1,6 +1,7 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include "chip8.cpp"
 #include "graphics.cpp"
@@ -10,9 +11,11 @@ using namespace std;
 int main(int argc, char** argv) {
     int windowScale = 12;
 
+    char* fileName = "tetris.rom";
+
     chip8 chip8;
     chip8.init();
-    chip8.loadROM("tetris.rom");
+    chip8.loadROM(fileName);
     
     Platform platform("CHIP-8 Emulator", VIDEO_WIDTH * windowScale,
                       VIDEO_HEIGHT * windowScale, VIDEO_WIDTH, VIDEO_HEIGHT);
@@ -31,7 +34,7 @@ int main(int argc, char** argv) {
                               .count();
         // std::cerr << "Delta Time: " << deltaTime << endl;
 
-        if (deltaTime <= 5) {
+        if (deltaTime <= 3) {
             continue;
         }
 

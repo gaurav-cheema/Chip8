@@ -2,8 +2,14 @@
 
 #include <ncurses.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <time.h>
+
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 #include "SDL2/SDL.h"
 
@@ -35,20 +41,44 @@ void chip8::loadROM(char* fileAddress) {
         cout << "chip8 :: Load ROM start" << endl;
     }
 
-    FILE* binFile = fopen(fileAddress, "r");
+    struct stat sb;
+    int size = 0;
 
-    if (binFile == NULL) {
-        std::cerr << "File Error Detected!" << std::endl;
+    if (stat(fileAddress, &sb) != -1) {
+        size = sb.st_size;
+    } else {
+        return;
     }
 
-    char buffer[MEMORY_SIZE - MEMORY_START_ADDRESS]{0};
-    while (!feof(binFile)) {
-        fread(buffer, sizeof(buffer), 1, binFile);
+    ifstream file(fileAddress, ios::binary | ios::ate);
+    file.seekg(0, ios::beg);
+
+    vector<char> buffer(size);
+    if (file.read(buffer.data(), size)) {
+        for (int i = 0; i < size; ++i) {
+            mem[MEMORY_START_ADDRESS + i] = buffer[i];
+        }
     }
 
-    for (int i = 0; i < MEMORY_SIZE - MEMORY_START_ADDRESS; i++) {
-        mem[MEMORY_START_ADDRESS + i] = buffer[i];
-    }
+    // FILE* binFile = fopen(fileAddress, "r");
+
+    // if (binFile == NULL) {
+    //     std::cerr << "File Error Detected!" << std::endl;
+    // }
+
+    // fseek(binFile, 0, SEEK_END);
+    // int size = ftell(binFile);
+    // fseek(binFile, 0, SEEK_SET);
+
+    // int size = binFile.size();
+    // char buffer[MEMORY_SIZE - MEMORY_START_ADDRESS]{0};
+    // while (!feof(binFile)) {
+    //     fread(buffer, sizeof(buffer), 1, binFile);
+    // }
+
+    // for (int i = 0; i < MEMORY_SIZE - MEMORY_START_ADDRESS; i++) {
+    //     mem[MEMORY_START_ADDRESS + i] = buffer[i];
+    // }
 
     // delete[] buffer;
 
@@ -57,7 +87,18 @@ void chip8::loadROM(char* fileAddress) {
     }
 }
 
-void chip8::fetchOpcode() { opcode = mem[pc] << 8 | mem[pc + 1]; }
+void chip8::fetchOpcode() {
+    opcode = mem[pc] << 8 | mem[pc + 1];
+    pc += 2;
+}
+
+void chip8::decode() {
+    x = (opcode & 0x0F00) >> 8;
+    y = (opcode & 0x00F0) >> 4;
+    n = opcode & 0x000F;
+    nn = opcode & 0x00FF;
+    nnn = opcode & 0x0FFF;
+}
 
 void chip8::execute() {
     if (DEBUG) {
@@ -65,15 +106,14 @@ void chip8::execute() {
         printf("Opcode fetched: %d /n", opcode);
     }
 
-    uint8_t nib;
-
     fetchOpcode();
-    pc += 2;
+    decode();
+    uint8_t nib;
 
     switch (opcode & 0xF000) {
         case 0x0000: {
-            uint8_t i = opcode & 0x00FF;
-            switch (i) {
+            nib = opcode & 0x00FF;
+            switch (nib) {
                 case 0x00E0: {
                     c00E0();
                 } break;
@@ -85,7 +125,8 @@ void chip8::execute() {
                     cerr << "CRITICAL: opcode 0 error!" << std::endl;
                     break;
             }
-        } break;
+            break;
+        }
 
         case 0x1000:
             c1NNN();
@@ -150,7 +191,6 @@ void chip8::execute() {
                     cerr << "CRITICAL: opcode 8 error!" << endl;
                     break;
             }
-
             break;
         }
 
@@ -236,7 +276,7 @@ void chip8::execute() {
     if (delayTimer > 0) --delayTimer;
     if (soundTimer > 0) {
         --soundTimer;
-        std::cout << '\a';
+        cout << '\a';
         // beep();
     }
 
@@ -248,181 +288,105 @@ void chip8::execute() {
 void chip8::c00E0() { memset(&screen, 0, sizeof(screen)); }
 
 void chip8::c00EE() {
-    --sp;
     pc = stack[sp];
+    --sp;
 }
 
 void chip8::c1NNN() { pc = opcode & 0x0FFF; }
 
 void chip8::c2NNN() {
-    stack[sp] = pc;
     sp++;
+    stack[sp] = pc;
     pc = opcode & 0x0FFF;
 }
 
 void chip8::c3XNN() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t nn = opcode & 0x00FF;
-
     if (V[x] == nn) {
         pc += 2;
     }
 }
 
 void chip8::c4XNN() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t nn = opcode & 0x00FF;
-
     if (V[x] != nn) {
         pc += 2;
     }
 }
 
 void chip8::c5XY0() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = opcode & 0x00F0 >> 4;
-
     if (V[x] == V[y]) {
         pc += 2;
     }
 }
 
-void chip8::c6XNN() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t nn = opcode & 0x00FF;
+void chip8::c6XNN() { V[x] = nn; }
 
-    V[x] = nn;
-}
+void chip8::c7XNN() { V[x] += nn; }
 
-void chip8::c7XNN() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t nn = opcode & 0x00FF;
+void chip8::c8XY0() { V[x] = V[y]; }
 
-    V[x] += nn;
-}
+void chip8::c8XY1() { V[x] |= V[y]; }
 
-void chip8::c8XY0() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
+void chip8::c8XY2() { V[x] &= V[y]; }
 
-    V[x] = V[y];
-}
-
-void chip8::c8XY1() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
-
-    V[x] |= V[y];
-}
-
-void chip8::c8XY2() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
-
-    V[x] &= V[y];
-}
-
-void chip8::c8XY3() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
-
-    V[x] ^= V[y];
-}
+void chip8::c8XY3() { V[x] ^= V[y]; }
 
 void chip8::c8XY4() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
-
-    uint8_t sum = V[x] + V[y];
+    uint16_t sum = V[x] + V[y];
 
     V[0xF] = sum > 0xFF;
     V[x] = sum & 0xFF;
 }
 
 void chip8::c8XY5() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
+    uint16_t sum = V[x] - V[y];
 
-    // ? should the condition be just '>' instead of '>='
-    if (V[x] > V[y]) {
-        V[0xF] = 1;
-    } else {
-        V[0xF] = 0;
-    }
-
-    V[x] -= V[y];
+    V[0xF] = sum > 0;
+    V[x] = sum & 0xFF;
 }
 
 void chip8::c8XY6() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
     V[0xF] = V[x] & 1;
     V[x] = V[x] >> 1;
 }
 
 void chip8::c8XY7() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
+    uint16_t sum = V[y] - V[x];
 
-    // Check with other sources
-    if (V[y] > V[x]) {
-        V[0xF] = 1;
-    } else {
-        V[0xF] = 0;
-    }
-
-    V[x] = V[y] - V[x];
+    V[0xF] = sum > 0;
+    V[x] = sum & 0xFF;
 }
 
 void chip8::c8XYE() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
-    V[0xF] = (V[x] & 0x80) >> 7;
+    V[0xF] = V[x] >> 7;
     V[x] <<= 1;
 }
 
 void chip8::c9XY0() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t y = (opcode & 0x00F0) >> 4;
-
     if (V[x] != V[y]) {
         pc += 2;
     }
 }
 
-void chip8::cANNN() { I = opcode & 0x0FFF; }
+void chip8::cANNN() { I = nnn; }
 
-void chip8::cBNNN() {
-    uint8_t nnn = opcode & 0x0FFF;
-
-    pc = V[0] + nnn;
-}
+void chip8::cBNNN() { pc = V[0] + nnn; }
 
 void chip8::cCXNN() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-    uint8_t nn = opcode & 0x00FF;
-
     srand(time(NULL));
-
     uint8_t random = rand();
-
     V[x] = random & nn;
 }
 
 //! Not my implementation of DXYN
 //! Credit to an Unknown author
 void chip8::cDXYN() {
-    uint8_t Vx = (opcode & 0x0F00) >> 8;
-    uint8_t Vy = (opcode & 0x00F0) >> 4;
-    uint8_t hc8XY = opcode & 0x000F;
-
     // Wrap if going beyond screen boundaries
-    uint8_t xPos = V[Vx] % 64;
-    uint8_t yPos = V[Vy] % 32;
+    uint8_t xPos = V[x] % 64;
+    uint8_t yPos = V[y] % 32;
 
     V[0xF] = 0;
 
-    for (unsigned int row = 0; row < hc8XY; ++row) {
+    for (unsigned int row = 0; row < n; ++row) {
         uint8_t spriteByte = mem[I + row];
 
         for (unsigned int col = 0; col < 8; ++col) {
@@ -444,112 +408,56 @@ void chip8::cDXYN() {
 }
 
 void chip8::cEX9E() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
     if (keyStroke[V[x]]) {
         pc += 2;
     }
 }
 
 void chip8::cEXA1() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
     if (!keyStroke[V[x]]) {
         pc += 2;
     }
 }
 
-void chip8::cFX07() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
-    V[x] = delayTimer;
-}
+void chip8::cFX07() { V[x] = delayTimer; }
 
 void chip8::cFX0A() {
-    uint8_t x = (opcode & 0x0F00u) >> 8u;
-
-    if (keyStroke[0]) {
-        V[x] = 0;
-    } else if (keyStroke[1]) {
-        V[x] = 1;
-    } else if (keyStroke[2]) {
-        V[x] = 2;
-    } else if (keyStroke[3]) {
-        V[x] = 3;
-    } else if (keyStroke[4]) {
-        V[x] = 4;
-    } else if (keyStroke[5]) {
-        V[x] = 5;
-    } else if (keyStroke[6]) {
-        V[x] = 6;
-    } else if (keyStroke[7]) {
-        V[x] = 7;
-    } else if (keyStroke[8]) {
-        V[x] = 8;
-    } else if (keyStroke[9]) {
-        V[x] = 9;
-    } else if (keyStroke[10]) {
-        V[x] = 10;
-    } else if (keyStroke[11]) {
-        V[x] = 11;
-    } else if (keyStroke[12]) {
-        V[x] = 12;
-    } else if (keyStroke[13]) {
-        V[x] = 13;
-    } else if (keyStroke[14]) {
-        V[x] = 14;
-    } else if (keyStroke[15]) {
-        V[x] = 15;
-    } else {
-        pc -= 2;
+    bool halt = true;
+    for (int i = 0; i < KEYCOUNT; ++i) {
+        if (keyStroke[i]) {
+            V[x] = i;
+            halt = false;
+        }
     }
+    if (halt) pc -= 2;
 }
 
-void chip8::cFX15() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
-    delayTimer = V[x];
-}
-
-void chip8::cFX18() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
-    soundTimer = V[x];
-}
-
-void chip8::cFX1E() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
-    I += V[x];
-}
+void chip8::cFX15() { delayTimer = V[x]; }
+void chip8::cFX18() { soundTimer = V[x]; }
+void chip8::cFX1E() { I += V[x]; }
 
 void chip8::cFX29() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
     uint8_t num = V[x];
-
-    I = FONTS_START_ADDRESS + (5 * num);
+    I = num;
+    // I = FONTS_START_ADDRESS + (5 * num);
 }
 
 void chip8::cFX33() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
     uint8_t num = V[x];
 
-    mem[I] = num % 1000;
-    mem[I + 1] = num % 100;
-    mem[I + 2] = num % 10;
+    for (int i = 0; i <= 2; ++i) {
+        mem[I - i + 2] = num % 10;
+        num /= 10;
+    }
 }
 
 void chip8::cFX55() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
     for (int i = 0; i <= x; ++i) {
         mem[I + i] = V[i];
     }
 }
 
 void chip8::cFX65() {
-    uint8_t x = (opcode & 0x0F00) >> 8;
-
     for (int i = 0; i <= x; ++i) {
         V[i] = mem[i + I];
     }

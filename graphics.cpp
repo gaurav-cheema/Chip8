@@ -14,7 +14,7 @@ class Platform {
 
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR24,
+        texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24,
                                     SDL_TEXTUREACCESS_STREAMING, textureWidth,
                                     textureHeight);
     }
@@ -26,7 +26,7 @@ class Platform {
         SDL_Quit();
     }
 
-    void Update(void const* buffer, int pitch) {
+    void Update(uint32_t const* buffer, int pitch) {
         SDL_UpdateTexture(texture, nullptr, buffer, pitch);
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);

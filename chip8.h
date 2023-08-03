@@ -7,18 +7,25 @@
 #define VIDEO_WIDTH 64
 #define VIDEO_HEIGHT 32
 
+#define KEYCOUNT 16
+
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 
 class chip8 {
-    //? change access level? Revisit later what should be private
+
    public:
     void init();
     void loadROM(char* fileAddress);
     void fetchOpcode();
+    void decode();
     void execute();
 
+    uint8_t keyStroke[16]{};
+    uint32_t screen[VIDEO_WIDTH * VIDEO_HEIGHT];
+
+    private:
     void c00E0();  // cls
     void c00EE();  // ret
 
@@ -60,10 +67,6 @@ class chip8 {
     void cFX55();  // store regs
     void cFX65();  // restore regs
 
-    uint8_t keyStroke[16]{};
-
-    uint32_t screen[VIDEO_WIDTH * VIDEO_HEIGHT];
-
     uint8_t V[16]{};        // GENERAL PURPOSE - VF should not be used by prog
     uint8_t mem[0x1000]{};  // 4096 byte memory
     uint16_t stack[16]{};   // stack frame depth - 16 levels
@@ -95,4 +98,10 @@ class chip8 {
         0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
         0xF0, 0x80, 0xF0, 0x80, 0x80   // F
     };
+
+    uint8_t x;
+    uint8_t y;
+    uint8_t n;
+    uint8_t nn;
+    uint16_t nnn;
 };
